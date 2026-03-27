@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Finance Tracker</title>
+  <link rel="stylesheet" href="/style.css">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+  <% if (typeof user !== "undefined" && user) { %>
+    <nav class="navbar">
+      <a href="/dashboard" class="navbar-brand"><i class="fas fa-wallet"></i> FinanceTracker</a>
+      <div class="nav-links">
+        <a href="/dashboard" class="<%= url === '/dashboard' ? 'active' : '' %>">Dashboard</a>
+        <% if (isAdmin) { %>
+          <a href="/admin" class="<%= url === '/admin' ? 'active' : '' %>">Admin Panel</a>
+        <% } %>
+        <span style="margin-left:1.5rem; color:var(--text-muted)">Halo, <%= user.name || user.email %></span>
+        <a href="/logout" class="btn-logout"><i class="fas fa-sign-out-alt"></i> Logout</a>
+      </div>
+    </nav>
+  <% } %>
+
+  <div class="container">
+    <%- body %>
+  </div>
+</body>
+</html>

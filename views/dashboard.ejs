@@ -1,0 +1,346 @@
+<%- include('partials/header') %>
+<script>
+  if (window.location.search.includes('registered=1')) {
+    KeuanganKu.alert('🎉 Selamat Datang!', 'Selamat datang di KeuanganKu! Akun Anda berhasil dibuat. Mulai catat keuangan Anda sekarang.');
+    history.replaceState(null, '', '/dashboard');
+  }
+</script>
+
+<div class="grid" style="margin-bottom: 2rem;">
+  <div class="stat-card income">
+    <h3>Pemasukan</h3>
+    <h2>Rp <%= totalIncome.toLocaleString('id-ID') %></h2>
+  </div>
+  <div class="stat-card expense">
+    <h3>Pengeluaran</h3>
+    <h2>Rp <%= totalExpense.toLocaleString('id-ID') %></h2>
+  </div>
+  <div class="stat-card balance">
+    <h3>Saldo Saat Ini</h3>
+    <h2>Rp <%= (totalIncome - totalExpense).toLocaleString('id-ID') %></h2>
+  </div>
+</div>
+
+<% if (budget > 0) { 
+   const spentPct = Math.min((totalExpense / budget) * 100, 100);
+   const isDanger = spentPct >= 90;
+   const isWarning = spentPct >= 75 && spentPct < 90;
+   const progressColor = isDanger ? 'var(--danger)' : (isWarning ? '#f59e0b' : 'var(--primary)');
+%>
+<div class="card" style="margin-bottom: 2rem;">
+  <div style="display:flex; justify-content: space-between; margin-bottom: 0.5rem; font-family: 'Outfit', sans-serif;">
+    <span style="color:var(--text-main); font-weight: 500;">Batas Anggaran Bulanan: Rp <%= budget.toLocaleString('id-ID') %></span>
+    <span style="color:<%= progressColor %>; font-weight: 600;"><%= spentPct.toFixed(1) %>% (<%= (budget - totalExpense) > 0 ? 'Sisa Rp ' + (budget - totalExpense).toLocaleString('id-ID') : 'Lebar Rp ' + Math.abs(budget - totalExpense).toLocaleString('id-ID') %>)</span>
+  </div>
+  <div style="width: 100%; height: 12px; background: rgba(0,0,0,0.2); border-radius: 6px; overflow: hidden; border: 1px solid var(--glass-border);">
+    <div style="width: <%= spentPct %>%; height: 100%; background: <%= progressColor %>; transition: width 0.5s ease;"></div>
+  </div>
+</div>
+<% } %>
+
+<div class="grid" style="grid-template-columns: 2fr 1fr; margin-bottom: 2rem;">
+  <div class="card">
+    <h3 style="margin-bottom: 1.5rem; color: var(--text-main); font-weight: 600;"><i class="fas fa-chart-line" style="color:var(--primary);"></i> Tren Keuangan</h3>
+    <div style="position: relative; height: 300px; width: 100%;">
+      <canvas id="financeChart"></canvas>
+    </div>
+  </div>
+  <div class="card">
+    <h3 style="margin-bottom: 1.5rem; color: var(--text-main); font-weight: 600;"><i class="fas fa-chart-pie" style="color:var(--primary);"></i> Pengeluaran by Kategori</h3>
+    <div style="position: relative; height: 300px; width: 100%;">
+      <canvas id="categoryChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<div class="grid">
+  <!-- Wrapper Formulir Tambah -->
+  <div class="card">
+    <h3 style="margin-bottom: 1.5rem; text-align: center; color: var(--text-main); font-weight: 600;">
+      <i class="fas fa-plus-circle" style="color:var(--primary); margin-right: 0.5rem;"></i> Tambah Transaksi
+    </h3>
+    <form action="/dashboard/add" method="POST" style="padding: 0 1.5rem;">
+      <div class="form-group">
+        <label>Tipe</label>
+        <select name="type" id="typeSelect" class="form-control custom-select" required>
+          <option value="income">Pemasukan</option>
+          <option value="expense">Pengeluaran</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Jumlah (Rp)</label>
+        <input type="number" name="amount" class="form-control" required placeholder="Contoh: 50000">
+      </div>
+      <div class="form-group">
+        <label>Kategori</label>
+        <select name="category" id="categorySelect" class="form-control custom-select" required>
+          <!-- Options ditarik dari JavaScript di bawah -->
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Deskripsi (Opsional)</label>
+        <textarea name="description" class="form-control" rows="2" placeholder="Catatan opsional..."></textarea>
+      </div>
+      <button type="submit" class="btn btn-primary btn-block"><i class="fas fa-save"></i> Simpan</button>
+    </form>
+  </div>
+
+  <!-- Riwayat Transaksi -->
+  <div class="card" style="grid-column: span 2;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+      <h3 style="color: var(--text-main); font-weight: 600;"><i class="fas fa-list-alt" style="color:var(--primary); margin-right: 0.5rem;"></i> Riwayat Transaksi</h3>
+      <div style="display:flex; gap: 1rem; align-items:center;">
+        <form method="GET" action="/dashboard" style="display:flex; gap:0.5rem; margin:0;">
+          <input type="month" name="month" class="form-control" style="padding: 0.35rem 0.5rem; width: auto;" value="<%= monthFilter %>" onchange="this.form.submit()">
+        </form>
+        <a href="/dashboard/export/pdf" class="btn btn-danger" style="padding: 0.35rem 1rem; font-size: 0.875rem;"><i class="fas fa-file-pdf"></i> PDF</a>
+        <a href="/dashboard/export/excel" class="btn btn-secondary" style="padding: 0.35rem 1rem; font-size: 0.875rem;"><i class="fas fa-file-excel"></i> Excel</a>
+      </div>
+    </div>
+    
+    <div class="table-responsive">
+      <table>
+        <thead>
+          <tr>
+            <th>Tanggal</th>
+            <th>Tipe</th>
+            <th>Kategori</th>
+            <th>Deskripsi</th>
+            <th style="text-align:right;">Jumlah</th>
+            <th style="text-align:center;">Aksi</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (transactions.length === 0) { %>
+            <tr><td colspan="6" style="text-align:center; padding: 2rem;">Belum ada transaksi. Tambahkan data pertama Anda.</td></tr>
+          <% } else { %>
+            <% transactions.forEach(t => { %>
+              <tr>
+                <td style="color:var(--text-muted);"><%= new Date(t.created_at).toLocaleDateString('id-ID', {day: 'numeric', month: 'short', year: 'numeric'}) %></td>
+                <td>
+                  <span class="badge <%= t.type === 'income' ? 'badge-income' : 'badge-expense' %>">
+                    <i class="fas <%= t.type === 'income' ? 'fa-arrow-trend-up' : 'fa-arrow-trend-down' %>" style="margin-right:0.35rem;"></i> 
+                    <%= t.type === 'income' ? 'Pemasukan' : 'Pengeluaran' %>
+                  </span>
+                </td>
+                <td><strong><%= t.category %></strong></td>
+                <td><span style="color:var(--text-muted); font-size:0.875rem;"><%= t.description || '-' %></span></td>
+                <td style="font-weight:700; text-align:right; font-size: 1.05rem; color: <%= t.type === 'income' ? 'var(--success)' : 'var(--danger)' %>;">
+                  <%= t.type === 'income' ? '+' : '-' %> Rp <%= parseFloat(t.amount).toLocaleString('id-ID') %>
+                </td>
+                <td style="text-align:center; white-space: nowrap;">
+                  <a href="/dashboard/edit/<%= t.id %>" class="btn btn-secondary" style="padding: 0.35rem 0.6rem; font-size: 0.85rem;" title="Edit"><i class="fas fa-edit"></i></a>
+                  <form action="/dashboard/delete/<%= t.id %>" method="POST" style="display:inline;" onsubmit="return confirm('Yakin ingin menghapus transaksi ini?');">
+                    <button type="submit" class="btn btn-danger" style="padding: 0.35rem 0.6rem; font-size: 0.85rem;" title="Hapus"><i class="fas fa-trash"></i></button>
+                  </form>
+                </td>
+              </tr>
+            <% }) %>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+    
+    <!-- Pagination -->
+    <% if (totalPages > 1) { %>
+    <div style="display: flex; justify-content: center; gap: 0.5rem; margin-top: 1.5rem;">
+      <% for(let i=1; i<=totalPages; i++) { %>
+        <a href="/dashboard?month=<%= monthFilter %>&page=<%= i %>" class="btn <%= page === i ? 'btn-primary' : 'btn-secondary' %>" style="padding: 0.35rem 0.75rem;"><%= i %></a>
+      <% } %>
+    </div>
+    <% } %>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  // Dynamic Category Logic
+  const categories = {
+    income: ['Gaji', 'Bonus Akhir Tahun', 'Investasi', 'Hadiah', 'Freelance/Proyek', 'Lainnya'],
+    expense: ['Konsumsi/Makanan', 'Transportasi', 'Kesehatan', 'Pendidikan', 'Hiburan', 'Tagihan / Listrik', 'Belanja', 'Lainnya']
+  };
+
+  const typeSelect = document.getElementById('typeSelect');
+  const catSelect = document.getElementById('categorySelect');
+
+  function updateCategories() {
+    const type = typeSelect.value;
+    catSelect.innerHTML = '';
+    categories[type].forEach(cat => {
+      catSelect.innerHTML += `<option value="${cat}">${cat}</option>`;
+    });
+  }
+
+  typeSelect.addEventListener('change', updateCategories);
+  updateCategories(); // Initialize first options
+
+  // Chart.js Area Chart Logic
+  const allTransactions = <%- JSON.stringify(allMonthTx || []) %>;
+  const categoryTotals = <%- JSON.stringify(categoryTotals || {}) %>;
+  
+  // Sort data asc because API brings desc
+  const sortedTx = allTransactions.sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
+
+  const mapData = {};
+  sortedTx.forEach(t => {
+    // Membentuk string tanggal pendek yang bersih
+    const dObj = new Date(t.created_at);
+    // Kita gunakan d/m/y format singkat
+    const d = dObj.toLocaleDateString('id-ID', {day: 'numeric', month: 'short'});
+    
+    if (!mapData[d]) mapData[d] = { income: 0, expense: 0 };
+    if (t.type === 'income') mapData[d].income += parseFloat(t.amount);
+    if (t.type === 'expense') mapData[d].expense += parseFloat(t.amount);
+  });
+
+  const dates = [];
+  const incomeData = [];
+  const expenseData = [];
+
+  for (const [date, val] of Object.entries(mapData)) {
+    dates.push(date);
+    incomeData.push(val.income);
+    expenseData.push(val.expense);
+  }
+
+  // Handle case where no transactions exist
+  if (dates.length === 0) {
+      dates.push("Belum ada data");
+      incomeData.push(0);
+      expenseData.push(0);
+  }
+
+  const ctx = document.getElementById('financeChart').getContext('2d');
+  
+  // Custom Gradients for visual pop
+  let gradientIncome = ctx.createLinearGradient(0, 0, 0, 400);
+  gradientIncome.addColorStop(0, 'rgba(52, 211, 153, 0.4)');
+  gradientIncome.addColorStop(1, 'rgba(52, 211, 153, 0)');
+  
+  let gradientExpense = ctx.createLinearGradient(0, 0, 0, 400);
+  gradientExpense.addColorStop(0, 'rgba(251, 113, 133, 0.4)');
+  gradientExpense.addColorStop(1, 'rgba(251, 113, 133, 0)');
+
+  new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: dates,
+      datasets: [
+        {
+          label: 'Pemasukan',
+          data: incomeData,
+          borderColor: '#34d399',
+          backgroundColor: gradientIncome,
+          fill: true,
+          tension: 0.4,
+          pointRadius: 4,
+          pointBackgroundColor: '#34d399',
+          borderWidth: 3
+        },
+        {
+          label: 'Pengeluaran',
+          data: expenseData,
+          borderColor: '#fb7185',
+          backgroundColor: gradientExpense,
+          fill: true,
+          tension: 0.4,
+          pointRadius: 4,
+          pointBackgroundColor: '#fb7185',
+          borderWidth: 3
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      layout: {
+        padding: { top: 20 }
+      },
+      interaction: {
+        mode: 'index',
+        intersect: false,
+      },
+      plugins: {
+        legend: {
+          labels: { color: '#94a3b8', font: {family: "'Outfit', sans-serif"} }
+        },
+        tooltip: {
+          backgroundColor: 'rgba(15, 23, 42, 0.9)',
+          titleFont: {family: "'Outfit', sans-serif"},
+          bodyFont: {family: "'Outfit', sans-serif"},
+          padding: 12,
+          boxPadding: 6,
+          usePointStyle: true,
+          callbacks: {
+              label: function(context) {
+                  let label = context.dataset.label || '';
+                  if (label) {
+                      label += ': Rp ';
+                  }
+                  if (context.parsed.y !== null) {
+                      label += context.parsed.y.toLocaleString('id-ID');
+                  }
+                  return label;
+              }
+          }
+        }
+      },
+      scales: {
+        x: { 
+          ticks: { color: '#94a3b8', font: {family: "'Outfit', sans-serif"} }, 
+          grid: { color: 'rgba(255,255,255,0.05)', drawBorder: false } 
+        },
+        y: { 
+          beginAtZero: true,
+          suggestedMax: Math.max(...incomeData.length ? incomeData : [0], ...expenseData.length ? expenseData : [0]) * 1.2 || 100000,
+          ticks: { color: '#94a3b8', font: {family: "'Outfit', sans-serif"},
+                   callback: function(value) { return 'Rp ' + (value/1000).toLocaleString('id-ID') + 'k'; }
+          }, 
+          grid: { color: 'rgba(255,255,255,0.05)', drawBorder: false } 
+        }
+      }
+    }
+  });
+
+  // Category Donut Chart
+  const catLabels = Object.keys(categoryTotals);
+  const catData = Object.values(categoryTotals);
+  
+  if (catLabels.length > 0) {
+    const ctxPie = document.getElementById('categoryChart').getContext('2d');
+    new Chart(ctxPie, {
+      type: 'doughnut',
+      data: {
+        labels: catLabels,
+        datasets: [{
+          data: catData,
+          backgroundColor: [
+            '#fb7185', '#34d399', '#fbbf24', '#60a5fa', '#a78bfa', '#f472b6', '#38bdf8', '#fb923c'
+          ],
+          borderWidth: 0,
+          hoverOffset: 4
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '75%',
+        plugins: {
+          legend: { position: 'right', labels: { color: '#94a3b8', font: {family: "'Outfit', sans-serif"} } },
+          tooltip: {
+            backgroundColor: 'rgba(15, 23, 42, 0.9)',
+            titleFont: {family: "'Outfit', sans-serif"},
+            bodyFont: {family: "'Outfit', sans-serif"},
+            callbacks: {
+              label: function(context) {
+                  return context.label + ': Rp ' + context.parsed.toLocaleString('id-ID');
+              }
+            }
+          }
+        }
+      }
+    });
+  }
+</script>
+
+<%- include('partials/footer') %>

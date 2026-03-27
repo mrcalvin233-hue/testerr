@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KeuanganKu</title>
+  <link rel="stylesheet" href="/style.css">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  <script>
+    const savedTheme = localStorage.getItem('theme') || 'dark';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+  </script>
+</head>
+<body>
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+
+  <!-- Global Custom Modal -->
+  <div id="globalModal" class="modal-overlay">
+    <div class="modal-content">
+      <h2 id="modalTitle">Konfirmasi</h2>
+      <p id="modalMessage">Apakah Anda yakin?</p>
+      <div class="modal-actions">
+        <button id="modalCancel" class="btn btn-secondary">Batal</button>
+        <button id="modalConfirm" class="btn btn-primary">Ya, Lanjut</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    window.KeuanganKu = {
+      showModal: ({ title, message, confirmText = 'Ya, Lanjut', cancelText = 'Batal', onConfirm, showCancel = true }) => {
+        const modal = document.getElementById('globalModal');
+        const t = document.getElementById('modalTitle');
+        const m = document.getElementById('modalMessage');
+        const cBtn = document.getElementById('modalConfirm');
+        const xBtn = document.getElementById('modalCancel');
+
+        t.innerText = title;
+        m.innerText = message;
+        cBtn.innerText = confirmText;
+        xBtn.innerText = cancelText;
+        xBtn.style.display = showCancel ? 'inline-flex' : 'none';
+
+        modal.classList.add('active');
+
+        return new Promise((resolve) => {
+          cBtn.onclick = () => {
+            modal.classList.remove('active');
+            if (onConfirm) onConfirm();
+            resolve(true);
+          };
+          xBtn.onclick = () => {
+            modal.classList.remove('active');
+            resolve(false);
+          };
+        });
+      },
+      alert: (title, message) => window.KeuanganKu.showModal({ title, message, showCancel: false, confirmText: 'OK' }),
+      confirm: (title, message) => window.KeuanganKu.showModal({ title, message })
+    };
+  </script>
+
+  <% if (typeof user !== "undefined" && user) { %>
+    <nav class="navbar">
+      <a href="/dashboard" class="navbar-brand"><i class="fas fa-wallet"></i> KeuanganKu</a>
+      <div class="nav-links">
+        <a href="/dashboard" class="<%= url === '/dashboard' ? 'active' : '' %>">Dashboard</a>
+        <a href="/profile" class="<%= url === '/profile' ? 'active' : '' %>">Profil</a>
+        <% if (isAdmin) { %>
+          <a href="/admin" class="<%= url === '/admin' ? 'active' : '' %>">Admin Panel</a>
+        <% } %>
+        <span style="margin-left:1.5rem; color:var(--text-muted)">Halo, <strong><%= user.name || user.email %></strong></span>
+        <button id="themeToggle" class="btn btn-secondary" style="border-radius:50%; width:35px; height:35px; padding:0; display:inline-flex; align-items:center; justify-content:center; margin-left:1rem; cursor:pointer;" title="Ubah Tema"><i class="fas fa-moon"></i></button>
+        <a href="/logout" class="btn-logout" style="margin-left:1rem;" onclick="event.preventDefault(); KeuanganKu.confirm('Logout', 'Yakin ingin keluar dari KeuanganKu?').then(ok => { if(ok) window.location.href='/logout'; });"><i class="fas fa-sign-out-alt"></i> Logout</a>
+      </div>
+    </nav>
+    <script>
+      const toggleBtn = document.getElementById('themeToggle');
+      if(toggleBtn) {
+        if(document.documentElement.getAttribute('data-theme') === 'light') toggleBtn.innerHTML = '<i class="fas fa-sun"></i>';
+        toggleBtn.onclick = () => {
+          const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+          document.documentElement.setAttribute('data-theme', theme);
+          localStorage.setItem('theme', theme);
+          toggleBtn.innerHTML = theme === 'dark' ? '<i class="fas fa-moon"></i>' : '<i class="fas fa-sun"></i>';
+        };
+      }
+    </script>
+  <% } %>
+  <div class="container">

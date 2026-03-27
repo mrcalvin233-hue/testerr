@@ -1,0 +1,65 @@
+<%- include('partials/header') %>
+<div class="card" style="max-width: 600px; margin: 0 auto;">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+    <h2 style="color: var(--primary); margin: 0;">Edit Transaksi</h2>
+    <a href="/dashboard" class="btn btn-secondary" style="padding: 0.5rem 1rem;"><i class="fas fa-arrow-left"></i> Kembali</a>
+  </div>
+
+  <form action="/dashboard/edit/<%= t.id %>" method="POST">
+    <div class="form-group">
+      <label>Waktu Transaksi</label>
+      <input type="datetime-local" name="created_at" class="form-control" required 
+        value="<%= new Date(new Date(t.created_at).getTime() - (new Date().getTimezoneOffset() * 60000)).toISOString().slice(0,16) %>">
+    </div>
+    <div class="form-group">
+      <label>Tipe</label>
+      <select name="type" id="typeSelect" class="form-control custom-select" required>
+        <option value="income" <%= t.type === 'income' ? 'selected' : '' %>>Pemasukan</option>
+        <option value="expense" <%= t.type === 'expense' ? 'selected' : '' %>>Pengeluaran</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Jumlah (Rp)</label>
+      <input type="number" name="amount" class="form-control" required value="<%= t.amount %>">
+    </div>
+    <div class="form-group">
+      <label>Kategori</label>
+      <select name="category" id="categorySelect" class="form-control custom-select" required>
+        <option value="<%= t.category %>" selected><%= t.category %></option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Deskripsi (Opsional)</label>
+      <textarea name="description" class="form-control" rows="2"><%= t.description %></textarea>
+    </div>
+    <button type="submit" class="btn btn-primary btn-block"><i class="fas fa-save"></i> Simpan Perubahan</button>
+  </form>
+</div>
+
+<script>
+  const categories = {
+    income: ['Gaji', 'Bonus Akhir Tahun', 'Investasi', 'Hadiah', 'Freelance/Proyek', 'Lainnya'],
+    expense: ['Konsumsi/Makanan', 'Transportasi', 'Kesehatan', 'Pendidikan', 'Hiburan', 'Tagihan / Listrik', 'Belanja', 'Lainnya']
+  };
+
+  const typeSelect = document.getElementById('typeSelect');
+  const catSelect = document.getElementById('categorySelect');
+  const existingCategory = "<%= t.category %>";
+
+  function updateCategories() {
+    const type = typeSelect.value;
+    catSelect.innerHTML = '';
+    categories[type].forEach(cat => {
+      const selected = cat === existingCategory ? 'selected' : '';
+      catSelect.innerHTML += `<option value="${cat}" ${selected}>${cat}</option>`;
+    });
+    // Add existing if not in list
+    if (!categories[type].includes(existingCategory) && type === "<%= t.type %>") {
+        catSelect.innerHTML += `<option value="${existingCategory}" selected>${existingCategory}</option>`;
+    }
+  }
+
+  typeSelect.addEventListener('change', updateCategories);
+  updateCategories();
+</script>
+<%- include('partials/footer') %>
