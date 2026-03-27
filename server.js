@@ -15,7 +15,7 @@ const supabaseAdmin = process.env.SUPABASE_SERVICE_ROLE_KEY ? createClient(proce
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(cookieParser());
-app.use(express.static('public'));
+app.use(express.static(path.join(__dirname, 'public')));
 
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
